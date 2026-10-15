@@ -6,3 +6,13 @@ config.json
 config.json.tmp
 .env
 varta-deploy.tar.gz
+collector-config/
+collector-data/
+.tools/
+cloud/site/app.js
+cloud/site/history.js
+cloud/site/index.html
+cloud/site/style.css
+cloud/site/staticwebapp.config.json
+cloud/api/src/generated-model.mjs
+artifacts/

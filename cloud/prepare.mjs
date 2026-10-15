@@ -1,0 +1,38 @@
+import { mkdir, copyFile, readFile, writeFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+const root = new URL('../', import.meta.url), site = new URL('./site/', import.meta.url);
+await mkdir(site, { recursive: true });
+for (const name of ['index.html', 'history.js', 'style.css', 'i18n.js']) await copyFile(new URL(`public/${name}`, root), new URL(name, site));
+let html = await readFile(new URL('index.html', site), 'utf8');
+html = html.replace(/<title>.*?<\/title>/, '<title>VARTA.iq · Azure</title>').replace('/ Lokal', '/ Azure').replace('DEIN GATEWAY, DIREKT AUSGELESEN', 'DEINE MESSWERTE IN AZURE').replace('Live-Messwerte und Verlauf aus deiner lokalen Schnittstelle.', 'Hochgeladene Messwerte und Verlauf · Zugriff nur für eingeladene Nutzer.');
+html = html.replace(/<section class="panel settings-panel"[\s\S]*?<\/section>/, '<section class="panel"><p class="meta" id="cloudStatus" role="status">Azure-Status wird geladen …</p><p class="meta" id="cleanupStatus"></p><p class="meta"><a href="/.auth/logout">Abmelden</a></p></section>');
+html = html.replace('LOKAL AUFGEZEICHNET', 'IN AZURE GESPEICHERT');
+html = html.replace('<option value="168">Letzte 7 Tage</option>', '<option value="168">Letzte 7 Tage</option><option value="720">Letzte 30 Tage</option><option value="year">Letztes Jahr</option><option value="custom">Eigener Zeitraum</option>');
+html = html.replace('<p class="meta" id="historyMeta"', '<div class="settings-form" id="dateRange" hidden><label>Von <input id="historyFrom" type="datetime-local"></label><label>Bis <input id="historyTo" type="datetime-local"></label><button id="applyRange" type="button">Zeitraum anzeigen</button><p class="meta">Datumseingabe in der lokalen Zeitzone deines Browsers; Diagrammzeiten Europe/Berlin.</p></div><p class="meta" id="historyMeta"');
+html = html.replace('Die Aufzeichnung läuft alle 10 Sekunden im Backend, auch ohne geöffneten Browser. Zeiten: Europe/Berlin. Fehlende Zeiträume bleiben leer.', 'Der Collector liefert alle 10 Sekunden neue Daten. Aufbewahrung: 365 UTC-Kalendertage. Zeiten: Europe/Berlin. Fehlende Zeiträume bleiben leer.');
+html = html.replace(/<footer>[\s\S]*?<\/footer>/, '<footer><p id="recording" role="status"></p>Quelle: <a id="gatewayLink">Azure / Collector</a> · Private Messdaten · 365 Tage Speicherung</footer>');
+await writeFile(new URL('index.html', site), html);
+const localApp = await readFile(new URL('public/app.js', root), 'utf8');
+const start = localApp.indexOf('function element('), end = localApp.indexOf('async function load(name)');
+if (start < 0 || end <= start) throw new Error('Gemeinsame Viewer-Darstellung nicht gefunden. Cloud-Vorbereitung prüfen.');
+const app = (await readFile(new URL('./viewer.js', import.meta.url), 'utf8')).replace('/* SHARED_RENDERERS */', localApp.slice(start, end));
+await writeFile(new URL('app.js', site), app);
+let history = await readFile(new URL('history.js', site), 'utf8');
+history = history.replace("    const response = await fetch(`/api/history?hours=${hours}`", `    const params = new URLSearchParams();
+    const now = Date.now();
+    if (hours === 'custom') {
+      const from = Date.parse($('historyFrom').value), to = Date.parse($('historyTo').value);
+      if (!Number.isFinite(from) || !Number.isFinite(to) || from >= to) throw new Error('Gültigen Zeitraum eingeben.');
+      params.set('from', new Date(from).toISOString()); params.set('to', new Date(to).toISOString());
+    } else if (hours === 'year') {
+      params.set('from', new Date(Math.floor(now / 86400000) * 86400000 - 364 * 86400000).toISOString());
+      params.set('to', new Date(now).toISOString());
+    } else params.set('hours', hours);
+    const response = await fetch('/api/history?' + params`);
+history = history.replace("Number($('historyRange').value) > 24", "history.to - history.from > 86400000");
+history = history.replace("signal: AbortSignal.timeout(15000)", "signal: AbortSignal.timeout(40000)");
+history = history.replace("$('historyRange').addEventListener('change', refreshHistory);", "$('historyRange').addEventListener('change', () => { $('dateRange').hidden = $('historyRange').value !== 'custom'; if ($('historyRange').value !== 'custom') refreshHistory(); });\n$('applyRange').addEventListener('click', refreshHistory);");
+await writeFile(new URL('history.js', site), history);
+await copyFile(new URL('shared/model.mjs', root), new URL('./api/src/generated-model.mjs', import.meta.url));
+await copyFile(new URL('./staticwebapp.config.json', import.meta.url), new URL('staticwebapp.config.json', site));
+console.log(`Cloud-Website vorbereitet: ${fileURLToPath(site)}`);

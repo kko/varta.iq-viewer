@@ -1,0 +1,11 @@
+**
+!collector/
+!collector/**
+!shared/
+!shared/**
+!settings.mjs
+!gateway-https.mjs
+!certificates/
+!certificates/gateway-*.pem
+!public/
+!public/style.css

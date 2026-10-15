@@ -24,12 +24,12 @@ export async function gatewayTlsOptions(host, certificateDirectory) {
   };
 }
 
-export async function fetchGateway(url, certificateDirectory) {
+export async function fetchGateway(url, certificateDirectory, apiKey = '') {
   const target = new URL(url);
   if (target.protocol !== 'https:') throw new Error('Gateway-Zugriff benötigt HTTPS.');
   const tlsOptions = await gatewayTlsOptions(target.hostname, certificateDirectory);
   return new Promise((resolve, reject) => {
-    const request = https.get(target, { ...tlsOptions, signal: AbortSignal.timeout(8000) }, response => {
+    const request = https.get(target, { ...tlsOptions, headers: apiKey ? { 'X-API-Key': apiKey } : {}, signal: AbortSignal.timeout(8000) }, response => {
       let body = '';
       response.setEncoding('utf8');
       response.on('data', chunk => {

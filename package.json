@@ -3,6 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "scripts": { "start": "node server.mjs", "test": "node --test history.test.mjs server.test.mjs" },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node cloud/prepare.mjs && node --test history.test.mjs server.test.mjs i18n.test.mjs tests/*.test.mjs",
+    "prepare:cloud": "node cloud/prepare.mjs",
+    "start:collector": "node collector/server.mjs",
+    "acceptance": "node scripts/acceptance.mjs"
+  },
   "engines": { "node": ">=22.9" }
 }

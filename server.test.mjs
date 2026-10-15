@@ -41,7 +41,7 @@ test('container networking, settings protection and persistent directories', { t
     });
   };
   const base = `http://127.0.0.1:${port}`;
-  const update = (host, origin, ip = '127.0.0.2') => new Promise((resolve, reject) => {
+  const update = (host, origin, ip = '127.0.0.2', apiKey) => new Promise((resolve, reject) => {
     const req = request(`${base}/api/settings`, {
       method: 'PUT', headers: { Host: host, Origin: origin, 'Content-Type': 'application/json' },
     }, res => {
@@ -49,7 +49,7 @@ test('container networking, settings protection and persistent directories', { t
       res.once('end', () => resolve({ status: res.statusCode }));
     });
     req.once('error', reject);
-    req.end(JSON.stringify({ gatewayIp: ip }));
+    req.end(JSON.stringify({ gatewayIp: ip, ...(apiKey === undefined ? {} : { gatewayApiKey: apiKey }) }));
   });
   try {
     await start();
@@ -60,9 +60,21 @@ test('container networking, settings protection and persistent directories', { t
     assert.equal((await update(`varta.test:${port}`, `http://varta.test:${port}`, 'invalid')).status, 400);
     assert.equal((await update(`varta.test:${port}`, `http://varta.test:${port}`)).status, 200);
     assert.equal(JSON.parse(await readFile(join(config, 'config.json'), 'utf8')).gatewayIp, '127.0.0.2');
+    const localHost = `varta.test:${port}`;
+    const localOrigin = `http://${localHost}`;
+    assert.equal((await update(localHost, localOrigin, '127.0.0.2', 'test-local-key')).status, 200);
+    const publicSettings = await (await fetch(`${base}/api/settings`)).json();
+    assert.equal(publicSettings.hasApiKey, true);
+    assert.equal('gatewayApiKey' in publicSettings, false);
+    assert.equal((await update(localHost, localOrigin)).status, 200);
+    assert.equal(JSON.parse(await readFile(join(config, 'config.json'), 'utf8')).gatewayApiKey, 'test-local-key');
+    assert.equal((await update(localHost, localOrigin, '127.0.0.2', 'invalid\nheader')).status, 400);
     await stop();
     await start();
     assert.equal((await (await fetch(`${base}/api/settings`)).json()).gatewayIp, '127.0.0.2');
+    assert.equal((await (await fetch(`${base}/api/settings`)).json()).hasApiKey, true);
+    assert.equal((await update(localHost, localOrigin, '127.0.0.2', '')).status, 200);
+    assert.equal((await (await fetch(`${base}/api/settings`)).json()).hasApiKey, false);
   } finally {
     await stop();
     await rm(root, { recursive: true, force: true });

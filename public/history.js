@@ -1,10 +1,16 @@
+import { t, locale, message } from './i18n.js';
 const $ = id => document.getElementById(id);
 const selected = new Map();
 let requestId = 0;
-const timeLabel = (time, long = false) => new Date(time).toLocaleString('de-DE', {
+let lastHistory = null;
+const timeLabel = (time, long = false) => new Date(time).toLocaleString(locale(), {
   timeZone: 'Europe/Berlin', ...(long ? { day: '2-digit', month: '2-digit' } : {}), hour: '2-digit', minute: '2-digit', ...(long ? { second: '2-digit' } : {}),
 });
-const format = value => new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 }).format(value);
+const format = value => new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(value);
+function seriesLabel(item) {
+  if (!item.key.startsWith('device:')) return t(item.label);
+  return item.key.endsWith(':soc') ? item.label.replace(/ · Ladezustand$/, t(' · Ladezustand')) : item.label;
+}
 
 function draw(history, unit, target, legendTarget) {
   const series = history.series.filter(item => item.unit === unit);
@@ -18,7 +24,7 @@ function draw(history, unit, target, legendTarget) {
     checkbox.type = 'checkbox'; checkbox.checked = selected.get(item.key);
     checkbox.style.accentColor = item.color;
     checkbox.addEventListener('change', () => { selected.set(item.key, checkbox.checked); draw(history, unit, target, legendTarget); });
-    const text = document.createElement('span'); text.textContent = item.label; text.style.color = item.color;
+    const text = document.createElement('span'); text.textContent = seriesLabel(item); text.style.color = item.color;
     label.append(checkbox, text); legend.append(label);
   }
   const active = series.filter(item => selected.get(item.key));
@@ -26,13 +32,13 @@ function draw(history, unit, target, legendTarget) {
   if (!points.length || !active.length) {
     container.replaceChildren();
     const empty = document.createElement('p'); empty.className = 'chart-empty';
-    empty.textContent = points.length ? 'Wähle oben mindestens eine Messreihe aus.' : 'Noch keine Messwerte in diesem Zeitraum. Neue Daten erscheinen automatisch.';
+    empty.textContent = t(points.length ? 'Wähle oben mindestens eine Messreihe aus.' : 'Noch keine Messwerte in diesem Zeitraum. Neue Daten erscheinen automatisch.');
     container.append(empty); return;
   }
   const width = 1000, height = 270, left = 64, right = 24, top = 20, bottom = 45;
   const chartWidth = width - left - right, chartHeight = height - top - bottom;
   const numbers = points.flatMap(point => active.map(item => point.values[item.key]).filter(Number.isFinite));
-  if (!numbers.length) { container.textContent = 'Für diese Auswahl liegen keine Werte vor.'; return; }
+  if (!numbers.length) { container.textContent = t('Für diese Auswahl liegen keine Werte vor.'); return; }
   let min = unit === '%' ? 0 : Math.min(0, ...numbers);
   let max = unit === '%' ? 100 : Math.max(1, ...numbers) * 1.12;
   if (min < 0) min *= 1.12;
@@ -41,7 +47,7 @@ function draw(history, unit, target, legendTarget) {
   const ns = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(ns, 'svg');
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`); svg.setAttribute('role', 'img');
-  svg.setAttribute('aria-label', `${unit === '%' ? 'Ladezustand' : 'Leistung'} über die Zeit. Einzelwerte über den Schieberegler unter dem Diagramm abrufen.`);
+  svg.setAttribute('aria-label', t('{metric} über die Zeit. Einzelwerte über den Schieberegler unter dem Diagramm abrufen.', { metric: t(unit === '%' ? 'Ladezustand' : 'Leistung') }));
   function node(tag, attrs, text) {
     const element = document.createElementNS(ns, tag);
     for (const [key, value] of Object.entries(attrs)) element.setAttribute(key, String(value));
@@ -72,7 +78,7 @@ function draw(history, unit, target, legendTarget) {
   }
   const cursor = node('line', { x1: left, x2: left, y1: top, y2: height - bottom, stroke: '#dce5f0', 'stroke-dasharray': '4 4', opacity: .5 });
   const readout = document.createElement('div'); readout.className = 'chart-readout'; readout.setAttribute('aria-live', 'polite');
-  const slider = document.createElement('input'); slider.type = 'range'; slider.min = '0'; slider.max = String(points.length - 1); slider.value = slider.max; slider.className = 'chart-slider'; slider.setAttribute('aria-label', 'Messzeitpunkt im Diagramm');
+  const slider = document.createElement('input'); slider.type = 'range'; slider.min = '0'; slider.max = String(points.length - 1); slider.value = slider.max; slider.className = 'chart-slider'; slider.setAttribute('aria-label', t('Messzeitpunkt im Diagramm'));
   function inspect(index) {
     const point = points[index];
     slider.value = String(index); cursor.setAttribute('x1', x(point.time)); cursor.setAttribute('x2', x(point.time));
@@ -81,7 +87,7 @@ function draw(history, unit, target, legendTarget) {
     const time = document.createElement('strong'); time.textContent = timeLabel(point.time, true); readout.append(time);
     for (const item of active) {
       const span = document.createElement('span'); span.style.color = item.color;
-      span.textContent = `${item.label}: ${Number.isFinite(point.values[item.key]) ? format(point.values[item.key]) + ' ' + unit : '—'}`;
+      span.textContent = `${seriesLabel(item)}: ${Number.isFinite(point.values[item.key]) ? format(point.values[item.key]) + ' ' + unit : '—'}`;
       readout.append(span);
     }
   }
@@ -105,13 +111,21 @@ export async function refreshHistory() {
     const history = await response.json();
     if (id !== requestId) return;
     if (!response.ok) throw new Error(history.error || 'Verlauf nicht erreichbar');
-    $('historyMeta').textContent = history.sampleCount
-      ? `${format(history.sampleCount)} gespeicherte Messpunkte · ${timeLabel(history.firstSample, true)} bis ${timeLabel(history.lastSample, true)} · ${history.intervalSeconds === 10 ? '10-Sekunden-Mittelwerte' : `Mittelwerte je ${history.intervalSeconds / 60} Minute(n)`}${history.skippedLines ? ` · ${history.skippedLines} unlesbare Speicherzeilen übersprungen` : ''}`
-      : 'In diesem Zeitraum wurden noch keine Daten aufgezeichnet.';
-    draw(history, 'W', 'powerChart', 'powerLegend');
-    draw(history, '%', 'socChart', 'socLegend');
+    lastHistory = history;
+    renderHistory(history);
   } catch (error) {
-    if (id === requestId) $('historyMeta').textContent = `Verlauf konnte nicht aktualisiert werden: ${error.message}. Bereits angezeigte Kurven stammen vom letzten Abruf.`;
+    if (id === requestId) { lastHistory = null; message('historyMeta', 'Verlauf konnte nicht aktualisiert werden: {error}. Bereits angezeigte Kurven stammen vom letzten Abruf.', { error: error.message }); }
   }
 }
+function renderHistory(history) {
+  if (history.sampleCount) message('historyMeta', '{count} gespeicherte Messpunkte · {from} bis {to} · {average}{skipped}', {
+    count: format(history.sampleCount), from: timeLabel(history.firstSample, true), to: timeLabel(history.lastSample, true),
+    average: history.intervalSeconds === 10 ? t('10-Sekunden-Mittelwerte') : t('Mittelwerte je {minutes} Minute(n)', { minutes: history.intervalSeconds / 60 }),
+    skipped: history.skippedLines ? t(' · {count} unlesbare Speicherzeilen übersprungen', { count: history.skippedLines }) : '',
+  });
+  else message('historyMeta', 'In diesem Zeitraum wurden noch keine Daten aufgezeichnet.');
+  draw(history, 'W', 'powerChart', 'powerLegend');
+  draw(history, '%', 'socChart', 'socLegend');
+}
+document.addEventListener('languagechange', () => { if (lastHistory) renderHistory(lastHistory); });
 $('historyRange').addEventListener('change', refreshHistory);

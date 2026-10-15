@@ -3,7 +3,7 @@ import { resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readFile, mkdir, appendFile } from 'node:fs/promises';
 import { readHistory } from './history.mjs';
-import { loadSettings, saveSettings, validateIp } from './settings.mjs';
+import { loadSettings, saveSettings, validateIp, validateApiKey } from './settings.mjs';
 import { fetchGateway } from './gateway-https.mjs';
 
 const certificateDir = process.env.GATEWAY_CERT_DIR
@@ -16,6 +16,7 @@ const configDir = process.env.CONFIG_DIR
 await mkdir(configDir, { recursive: true });
 const settingsFile = new URL('config.json', configDir);
 let settings = await loadSettings(settingsFile);
+const publicSettings = () => ({ gatewayIp: settings.gatewayIp, hasApiKey: Boolean(settings.gatewayApiKey) });
 let gateway = `https://${settings.gatewayIp}`;
 let updatingSettings = false;
 const port = Number(process.env.PORT || 8787);
@@ -42,8 +43,8 @@ async function record() {
     // Save independently so a device-list failure cannot interrupt measurement recording.
     const results = await Promise.allSettled(['point', 'devices'].map(async name => {
       try {
-      const response = await fetchGateway(`${gateway}/v2/${name}`, certificateDir);
-      if (!response.ok) throw new Error(`${name}: HTTP ${response.status}`);
+      const response = await fetchGateway(`${gateway}/v2/${name}`, certificateDir, settings.gatewayApiKey);
+      if (!response.ok) throw new Error(`${name}: HTTP ${response.status}${response.status === 401 || response.status === 403 ? ' – Zugriff verweigert. API-Key und Freigabe der lokalen API prüfen.' : ''}`);
       const data = await response.json();
       if (name === 'point' && (!data || typeof data !== 'object' || Array.isArray(data) || !Number.isFinite(Date.parse(data.t)))) throw new Error('point: Ungültiges Messdatenformat');
       if (name === 'devices' && !Array.isArray(data)) throw new Error('devices: Ungültiges Geräteformat');
@@ -78,6 +79,7 @@ const files = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
   ['/history.js', ['history.js', 'text/javascript; charset=utf-8']],
+  ['/i18n.js', ['i18n.js', 'text/javascript; charset=utf-8']],
   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
 ]);
 
@@ -98,16 +100,20 @@ const server = http.createServer(async (req, res) => {
         body += chunk;
         if (body.length > 1024) { json(413, { error: 'Anfrage zu groß.' }); return; }
       }
-      const ip = validateIp(JSON.parse(body).gatewayIp);
+      const input = JSON.parse(body);
+      const ip = validateIp(input.gatewayIp);
+      const apiKey = input.gatewayApiKey === undefined
+        ? (ip === settings.gatewayIp ? settings.gatewayApiKey : '')
+        : validateApiKey(input.gatewayApiKey);
       // Finish in-flight writes before replacing the gateway and its live cache.
       while (recordingBusy) await new Promise(resolve => setTimeout(resolve, 25));
       phase = 'save';
-      settings = await saveSettings(settingsFile, ip);
+      settings = await saveSettings(settingsFile, ip, apiKey);
       gateway = `https://${settings.gatewayIp}`;
       latest.clear(); pollErrors.clear();
       lastPointTime = undefined; lastDevices = undefined;
       recording.lastSavedAt = null; recording.lastMeasurementAt = null; recording.error = null;
-      json(200, settings);
+      json(200, publicSettings());
     } catch (error) {
       json(phase === 'input' ? 400 : 500, { error: phase === 'input' ? (error instanceof SyntaxError ? 'Ungültiges JSON.' : error.message) : 'Einstellung konnte nicht gespeichert werden. Die bisherige Adresse bleibt aktiv.' });
     } finally { updatingSettings = false; record(); }
@@ -119,7 +125,7 @@ const server = http.createServer(async (req, res) => {
   }
   if (path === '/api/settings') {
     res.writeHead(200, { ...headers, 'Content-Type': 'application/json; charset=utf-8' });
-    return res.end(JSON.stringify(settings));
+    return res.end(JSON.stringify(publicSettings()));
   }
   if (path === '/api/history') {
     const hours = Number(requestUrl.searchParams.get('hours') || 24);

@@ -54,7 +54,11 @@ The local server forwards the two fixed endpoints so the browser can read the da
 
 The viewer reads data locally without cloud requests or changes to the gateway. The view includes current data and the history of measurements already recorded locally. Field names are displayed in their original form; the main power and state-of-charge fields include additional explanations.
 
+Use the language selector in the page header to switch between German and English. The selection is saved in this browser and restored on reload. Labels, status and error messages, chart legends and controls, and number/date formatting switch together; times remain in Europe/Berlin. Original gateway JSON, field keys, and user-defined device names remain unchanged. Switching language preserves unsaved connection settings and the collapsed/expanded measurement panel.
+
 ## Local recording
+
+The connection form also accepts an optional local API key. Enter the original plaintext key chosen in the portal, not the value generated from it: this was verified against both local endpoints. The backend sends it to the configured gateway over HTTPS in the `X-API-Key` header. The key is stored only in the ignored local `config.json` (or the persistent Docker config volume), never in frontend source, history, or URLs. The settings API returns only `hasApiKey`, not the saved secret. Leave the password field empty to retain the key, or select the removal checkbox to delete it. Changing the gateway IP without entering a replacement key clears the old key to avoid forwarding it to a different device. HTTP 401/403 responses appear as authentication/access errors on the website.
 
 You can change the gateway IP on the website under “VARTA.iQ Energy Manager”. The “Speichern & verbinden” (“Save & connect”) button saves the IPv4 address in `config.json` in the project folder, or in `CONFIG_DIR` when configured. It persists across browser and server restarts. If no setting has been saved, the default is `192.168.4.119`. After saving, polling starts using the new address; a connection error appears if the device cannot be reached. Existing history files are preserved and continue to include the source address of each measurement.
 

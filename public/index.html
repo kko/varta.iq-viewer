@@ -4,16 +4,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <title>VARTA · Lokale Messdaten</title>
+  <title>VARTA.iq Viewer</title>
   <link rel="stylesheet" href="/style.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
   <main>
     <header>
-      <div class="brand"><span class="brand-mark">V</span><span>VARTA <span class="muted">/ Lokal</span></span></div>
-      <span class="source" id="gatewayAddress">Gateway wird geladen …</span>
+      <div class="brand"><span class="brand-mark">V</span><span>VARTA.iq Viewer</span></div>
+      <div class="header-controls"><span class="source" id="gatewayAddress">Gateway wird geladen …</span><label class="language-label" for="language">Sprache <select id="language"><option value="de" lang="de">Deutsch</option><option value="en" lang="en">English</option></select></label></div>
     </header>
+    <section class="panel history-panel" aria-labelledby="historyTitle">
+      <div class="panel-heading"><div><p class="eyebrow">LOKAL AUFGEZEICHNET</p><h2 id="historyTitle">Deine Messwerte im Verlauf</h2></div><label class="range-label">Zeitraum <select id="historyRange"><option value="1" selected>Letzte Stunde</option><option value="6">Letzte 6 Stunden</option><option value="24">Letzte 24 Stunden</option><option value="168">Letzte 7 Tage</option></select></label></div>
+      <p class="meta" id="historyMeta" role="status">Verlauf wird geladen …</p>
+      <div class="chart-block"><h3>Leistung <span>W</span></h3><div id="powerLegend" class="chart-legend"></div><div id="powerChart" class="chart"></div></div>
+      <div class="chart-block"><h3>Batterie-Ladezustand <span>%</span></h3><div id="socLegend" class="chart-legend"></div><div id="socChart" class="chart"></div></div>
+      <p class="meta">Die Aufzeichnung läuft alle 10 Sekunden im Backend, auch ohne geöffneten Browser. Zeiten: Europe/Berlin. Fehlende Zeiträume bleiben leer.</p>
+    </section>
     <section class="intro">
       <p class="eyebrow">DEIN GATEWAY, DIREKT AUSGELESEN</p>
       <h1>Was kommt an?</h1>
@@ -29,15 +36,12 @@
       <form id="settingsForm" class="settings-form">
         <label for="gatewayIp">IP-Adresse im lokalen Netzwerk</label>
         <div class="settings-controls"><input id="gatewayIp" name="gatewayIp" type="text" inputmode="decimal" placeholder="192.168.4.119" maxlength="15" required autocomplete="off" aria-describedby="settingsMessage"><button id="saveSettings" type="submit" disabled>Speichern & verbinden</button></div>
+        <label for="gatewayApiKey" class="api-key-label">API-Key für die lokale Schnittstelle (ursprünglicher Klartext)</label>
+        <div class="settings-controls"><input id="gatewayApiKey" name="gatewayApiKey" type="password" placeholder="Optionalen API-Key eingeben" maxlength="512" autocomplete="new-password" spellcheck="false" aria-describedby="apiKeyMessage"></div>
+        <p id="apiKeyMessage" class="meta">Ein leer gelassenes Feld behält den gespeicherten Key bei.</p>
+        <label class="auto"><input id="removeApiKey" type="checkbox"> Gespeicherten API-Key entfernen</label>
         <p id="settingsMessage" class="meta" role="status">Gespeicherte Einstellung wird geladen …</p>
       </form>
-    </section>
-    <section class="panel history-panel" aria-labelledby="historyTitle">
-      <div class="panel-heading"><div><p class="eyebrow">LOKAL AUFGEZEICHNET</p><h2 id="historyTitle">Deine Messwerte im Verlauf</h2></div><label class="range-label">Zeitraum <select id="historyRange"><option value="1" selected>Letzte Stunde</option><option value="6">Letzte 6 Stunden</option><option value="24">Letzte 24 Stunden</option><option value="168">Letzte 7 Tage</option></select></label></div>
-      <p class="meta" id="historyMeta" role="status">Verlauf wird geladen …</p>
-      <div class="chart-block"><h3>Leistung <span>W</span></h3><div id="powerLegend" class="chart-legend"></div><div id="powerChart" class="chart"></div></div>
-      <div class="chart-block"><h3>Batterie-Ladezustand <span>%</span></h3><div id="socLegend" class="chart-legend"></div><div id="socChart" class="chart"></div></div>
-      <p class="meta">Die Aufzeichnung läuft alle 10 Sekunden im Backend, auch ohne geöffneten Browser. Zeiten: Europe/Berlin. Fehlende Zeiträume bleiben leer.</p>
     </section>
     <section class="metrics" aria-label="Aktuelle Werte">
       <article><span class="metric-label">PV-Leistung <code>pW</code></span><strong id="pv">—</strong><span class="metric-note">Direkt vom Gateway</span></article>
@@ -45,12 +49,13 @@
       <article><span class="metric-label">Batterie <code>soc</code></span><strong id="soc">—</strong><span class="metric-note" id="battery">Ladezustand</span></article>
       <article><span class="metric-label">Verbundene Geräte</span><strong id="deviceCount">—</strong><span class="metric-note">Aus /v2/devices</span></article>
     </section>
-    <section class="panel">
-      <div class="panel-heading"><div><p class="eyebrow">AKTUELLE MESSWERTE</p><h2><span class="method">GET</span> /v2/point</h2></div><span class="badge" id="pointStatus">Warte auf Daten</span></div>
+    <details class="panel measurements-panel">
+      <summary class="measurements-toggle">Aktuelle Messwerte <span>GET /v2/point</span></summary>
+      <div class="panel-heading"><div><h2><span class="method">GET</span> /v2/point</h2></div><span class="badge" id="pointStatus">Warte auf Daten</span></div>
       <p class="meta" id="pointMeta">Die Antwort wird geladen.</p>
       <div class="table-scroll"><table><thead><tr><th>Feld</th><th>Wert</th><th>Einordnung</th></tr></thead><tbody id="fields"></tbody></table></div>
       <details open><summary>Vollständige JSON-Antwort <span>unverändert vom Gateway</span></summary><pre id="pointJson">Wird geladen …</pre></details>
-    </section>
+    </details>
     <section class="panel">
       <div class="panel-heading"><div><p class="eyebrow">GERÄTE IM NETZWERK</p><h2><span class="method">GET</span> /v2/devices</h2></div><span class="badge" id="devicesStatus">Warte auf Daten</span></div>
       <p class="meta" id="devicesMeta">Die Antwort wird geladen.</p>
