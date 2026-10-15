@@ -2,6 +2,8 @@
 
 Dieser Viewer zeigt die Daten eines VARTA.iQ Energy Managers im lokalen Netzwerk an.
 
+Vor der Nutzung muss der Benutzer den Zugriff auf die lokale API in der [VARTA-Cloud](https://iq.varta.energy/) unter **Einstellungen → Lokale API** freischalten.
+
 Start mit `npm start` oder per Doppelklick auf `Start-Varta.cmd`.
 Dann http://127.0.0.1:8787 im Browser öffnen. Node.js ab Version 20 wird benötigt; es sind keine weiteren Pakete nötig.
 
