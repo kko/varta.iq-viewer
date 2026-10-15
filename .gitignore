@@ -1,0 +1,8 @@
+node_modules/
+research/
+*.log
+data/
+config.json
+config.json.tmp
+.env
+varta-deploy.tar.gz

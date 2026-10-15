@@ -1,0 +1,21 @@
+services:
+  varta:
+    build: .
+    image: varta-local-viewer:local
+    restart: unless-stopped
+    init: true
+    environment:
+      ALLOWED_HOSTS: "${ALLOWED_HOSTS:-}"
+    ports:
+      - "${VARTA_BIND_ADDRESS:-127.0.0.1}:8787:8787"
+    volumes:
+      - varta-data:/app/data
+      - varta-config:/app/config
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  varta-data:
+  varta-config:

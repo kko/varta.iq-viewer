@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>VARTA · Lokale Messdaten</title>
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="brand"><span class="brand-mark">V</span><span>VARTA <span class="muted">/ Lokal</span></span></div>
+      <span class="source" id="gatewayAddress">Gateway wird geladen …</span>
+    </header>
+    <section class="intro">
+      <p class="eyebrow">DEIN GATEWAY, DIREKT AUSGELESEN</p>
+      <h1>Was kommt an?</h1>
+      <p class="subtitle">Live-Messwerte und Verlauf aus deiner lokalen Schnittstelle.</p>
+      <div class="toolbar">
+        <button id="refresh" type="button">Jetzt aktualisieren <span aria-hidden="true">↻</span></button>
+        <label class="auto"><input id="auto" type="checkbox" checked> Alle 10 Sekunden aktualisieren</label>
+        <span id="status" role="status" aria-live="polite">Verbindung wird hergestellt …</span>
+      </div>
+    </section>
+    <section class="panel settings-panel" aria-labelledby="settingsTitle">
+      <div class="panel-heading"><div><p class="eyebrow">VERBINDUNG</p><h2 id="settingsTitle">VARTA.iQ Energy Manager</h2></div></div>
+      <form id="settingsForm" class="settings-form">
+        <label for="gatewayIp">IP-Adresse im lokalen Netzwerk</label>
+        <div class="settings-controls"><input id="gatewayIp" name="gatewayIp" type="text" inputmode="decimal" placeholder="192.168.4.119" maxlength="15" required autocomplete="off" aria-describedby="settingsMessage"><button id="saveSettings" type="submit" disabled>Speichern & verbinden</button></div>
+        <p id="settingsMessage" class="meta" role="status">Gespeicherte Einstellung wird geladen …</p>
+      </form>
+    </section>
+    <section class="panel history-panel" aria-labelledby="historyTitle">
+      <div class="panel-heading"><div><p class="eyebrow">LOKAL AUFGEZEICHNET</p><h2 id="historyTitle">Deine Messwerte im Verlauf</h2></div><label class="range-label">Zeitraum <select id="historyRange"><option value="1" selected>Letzte Stunde</option><option value="6">Letzte 6 Stunden</option><option value="24">Letzte 24 Stunden</option><option value="168">Letzte 7 Tage</option></select></label></div>
+      <p class="meta" id="historyMeta" role="status">Verlauf wird geladen …</p>
+      <div class="chart-block"><h3>Leistung <span>W</span></h3><div id="powerLegend" class="chart-legend"></div><div id="powerChart" class="chart"></div></div>
+      <div class="chart-block"><h3>Batterie-Ladezustand <span>%</span></h3><div id="socLegend" class="chart-legend"></div><div id="socChart" class="chart"></div></div>
+      <p class="meta">Die Aufzeichnung läuft alle 10 Sekunden im Backend, auch ohne geöffneten Browser. Zeiten: Europe/Berlin. Fehlende Zeiträume bleiben leer.</p>
+    </section>
+    <section class="metrics" aria-label="Aktuelle Werte">
+      <article><span class="metric-label">PV-Leistung <code>pW</code></span><strong id="pv">—</strong><span class="metric-note">Direkt vom Gateway</span></article>
+      <article><span class="metric-label">Verbrauch <code>cW</code></span><strong id="load">—</strong><span class="metric-note">Direkt vom Gateway</span></article>
+      <article><span class="metric-label">Batterie <code>soc</code></span><strong id="soc">—</strong><span class="metric-note" id="battery">Ladezustand</span></article>
+      <article><span class="metric-label">Verbundene Geräte</span><strong id="deviceCount">—</strong><span class="metric-note">Aus /v2/devices</span></article>
+    </section>
+    <section class="panel">
+      <div class="panel-heading"><div><p class="eyebrow">AKTUELLE MESSWERTE</p><h2><span class="method">GET</span> /v2/point</h2></div><span class="badge" id="pointStatus">Warte auf Daten</span></div>
+      <p class="meta" id="pointMeta">Die Antwort wird geladen.</p>
+      <div class="table-scroll"><table><thead><tr><th>Feld</th><th>Wert</th><th>Einordnung</th></tr></thead><tbody id="fields"></tbody></table></div>
+      <details open><summary>Vollständige JSON-Antwort <span>unverändert vom Gateway</span></summary><pre id="pointJson">Wird geladen …</pre></details>
+    </section>
+    <section class="panel">
+      <div class="panel-heading"><div><p class="eyebrow">GERÄTE IM NETZWERK</p><h2><span class="method">GET</span> /v2/devices</h2></div><span class="badge" id="devicesStatus">Warte auf Daten</span></div>
+      <p class="meta" id="devicesMeta">Die Antwort wird geladen.</p>
+      <div id="devices" class="devices"></div>
+      <details open><summary>Vollständige JSON-Antwort <span>unverändert vom Gateway</span></summary><pre id="devicesJson">Wird geladen …</pre></details>
+    </section>
+    <footer><p id="recording" role="status">Aufzeichnungsstatus wird geladen …</p>Quelle: <a id="gatewayLink" target="_blank" rel="noreferrer">Wird geladen …</a> · Nur lokale Schnittstelle · Speicherung im Ordner data/ · Keine Cloud-Anbindung</footer>
+  </main>
+</body>
+</html>
