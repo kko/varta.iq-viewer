@@ -1,16 +1,16 @@
-# VARTA – lokale Datenansicht
+# VARTA – local data viewer
 
-Dieser Viewer zeigt die Daten eines VARTA.iQ Energy Managers im lokalen Netzwerk an.
+This viewer displays data from a VARTA.iQ Energy Manager on the local network.
 
-Vor der Nutzung muss der Benutzer den Zugriff auf die lokale API in der [VARTA-Cloud](https://iq.varta.energy/) unter **Einstellungen → Lokale API** freischalten.
+Before using the viewer, enable access to the local API in the [VARTA Cloud](https://iq.varta.energy/) under **Settings → Local API** (German interface: **Einstellungen → Lokale API**).
 
-Start mit `npm start` oder per Doppelklick auf `Start-Varta.cmd`.
-Dann http://127.0.0.1:8787 im Browser öffnen. Node.js ab Version 20 wird benötigt; es sind keine weiteren Pakete nötig.
+Start the service with `npm start` or by double-clicking `Start-Varta.cmd`.
+Then open http://127.0.0.1:8787 in your browser. Node.js version 20 or later is required; no additional packages are needed.
 
 ## Docker
 
-Voraussetzung: Docker Engine mit Linux-Containern und Docker Compose v2 (unter Windows z. B. Docker Desktop).
-Im Projektordner bauen und starten:
+Requirements: Docker Engine with Linux containers and Docker Compose v2 (for example, Docker Desktop on Windows).
+Build and start the service from the project folder:
 
 ```sh
 docker compose build
@@ -18,46 +18,46 @@ docker compose up -d
 docker compose ps
 ```
 
-Die Website ist unter http://127.0.0.1:8787 erreichbar. Falls der lokale Node-Server noch läuft, diesen vorher beenden, damit Port 8787 frei ist. Der Container muss die Gateway-IP im lokalen Netzwerk erreichen können. Die IP lässt sich weiterhin auf der Website speichern.
+The website is available at http://127.0.0.1:8787. If the local Node server is still running, stop it first to free port 8787. The container must be able to reach the gateway's IP address on the local network. You can still save the gateway IP through the website.
 
-Der Dienst läuft im Container als Benutzer `node`. Compose speichert Verlauf und Einstellungen in den benannten Volumes `varta-data` und `varta-config`; diese bleiben bei Container-Neustarts, Neubauten und `docker compose down` erhalten. `docker compose down -v` löscht auch die gespeicherten Daten. Vorhandene lokale Dateien aus `data/` und `config.json` werden nicht automatisch übernommen und sind nicht im Image enthalten. Der Healthcheck prüft den HTTP-Dienst; Gateway-Verbindungsfehler werden separat in der Website angezeigt.
+The service runs inside the container as the `node` user. Compose stores history and settings in the named volumes `varta-data` and `varta-config`; these survive container restarts, image rebuilds, and `docker compose down`. Running `docker compose down -v` also deletes the stored data. Existing local files in `data/` and `config.json` are not imported automatically and are not included in the image. The health check checks the HTTP service; gateway connection errors are shown separately on the website.
 
 ```sh
 docker compose logs -f
 docker compose down
 ```
 
-Nur das Image bauen: `docker build -t varta-local-viewer:local .`.
+To build only the image: `docker build -t varta-local-viewer:local .`.
 
-Für Zugriff von anderen Rechnern eine `.env`-Datei im Projektordner anlegen (Beispiele durch Adresse und Namen des Docker-Hosts ersetzen):
+To allow access from other computers, create a `.env` file in the project folder (replace the example addresses and hostnames with those of your Docker host):
 
 ```dotenv
 VARTA_BIND_ADDRESS=0.0.0.0
 ALLOWED_HOSTS=192.168.4.15:8787,veilpi.local:8787,veilpi:8787
 ```
 
-Dann `docker compose up -d --build` ausführen und z. B. http://192.168.4.15:8787 öffnen. Dadurch funktionieren Einstellungsänderungen auch über diese ausdrücklich erlaubten Hostnamen. Origin und Host müssen übereinstimmen. Die Anwendung hat keine Anmeldung; den Port nur im vertrauenswürdigen lokalen Netz freigeben. Das Node-22-Image unterstützt auch Raspberry Pis mit 32-Bit-ARMv7. Falls Docker-Berechtigungen fehlen, die Befehle mit `sudo` ausführen.
+Then run `docker compose up -d --build` and open, for example, http://192.168.4.15:8787. Settings can also be changed through these explicitly allowed hostnames. The request's origin must match its host. The application has no login; expose the port only on a trusted local network. The Node 22 image also supports Raspberry Pis running 32-bit ARMv7. If your account lacks Docker permissions, run the commands with `sudo`.
 
-Optionale Server-Umgebungsvariablen: `HOST` (lokal standardmäßig `127.0.0.1`, im Image `0.0.0.0`), `PORT` (8787), `DATA_DIR`, `CONFIG_DIR` und `ALLOWED_HOSTS` (kommagetrennte zusätzliche Host-Header einschließlich Port). Ohne Verzeichnisvariablen verwendet der lokale Node-Prozess weiterhin `data/` und `config.json` im Projektordner.
+Optional server environment variables: `HOST` (defaults to `127.0.0.1` locally and `0.0.0.0` in the image), `PORT` (8787), `DATA_DIR`, `CONFIG_DIR`, and `ALLOWED_HOSTS` (additional comma-separated Host header values, including the port). Without directory variables, the local Node process continues to use `data/` and `config.json` in the project folder.
 
-Der Backend-Dienst ruft ausschließlich `GET http://192.168.4.119/v2/point` und `GET http://192.168.4.119/v2/devices` alle zehn Sekunden ab, unabhängig von geöffneten Browsern. Das Frontend liest den letzten Abruf aus dem Backend-Cache; zusätzliche Browser erzeugen keine weiteren Gateway-Abfragen. Die vollständigen JSON-Antworten stehen unter der jeweiligen Übersicht. Die Aktualisierung der Anzeige erfolgt alle zehn Sekunden, solange der Tab sichtbar ist, und lässt sich abschalten.
+The backend polls only `GET http://192.168.4.119/v2/point` and `GET http://192.168.4.119/v2/devices` every ten seconds, regardless of whether any browsers are open. The frontend reads the latest response from the backend cache; additional browsers do not generate additional gateway requests. The complete JSON responses are available below their respective summaries. The display refreshes every ten seconds while the tab is visible, and automatic refreshing can be disabled.
 
-Der lokale Server leitet die beiden fest definierten Endpunkte weiter, damit der Browser die Daten ohne CORS-Probleme lesen kann. Er ist nur unter 127.0.0.1 erreichbar. Der Rechner muss im gleichen Netz wie das Gateway sein; das Serverfenster muss geöffnet bleiben. Beenden mit Strg+C.
+The local server forwards the two fixed endpoints so the browser can read the data without CORS issues. When started directly with Node using the default settings, it is accessible only at 127.0.0.1. The computer must be on the same network as the gateway; keep the server window open. Stop the server with Ctrl+C.
 
-Keine Cloud und keine Änderung am Gateway. Die Ansicht enthält aktuelle Daten und den Verlauf der bereits lokal aufgezeichneten Messungen. Feldbezeichnungen werden im Original angezeigt; die wichtigsten Leistungs- und Ladezustandsfelder haben zusätzliche Erläuterungen.
+The viewer reads data locally without cloud requests or changes to the gateway. The view includes current data and the history of measurements already recorded locally. Field names are displayed in their original form; the main power and state-of-charge fields include additional explanations.
 
-## Lokale Aufzeichnung
+## Local recording
 
-Die Gateway-IP lässt sich auf der Website unter „VARTA.iQ Energy Manager“ ändern. „Speichern & verbinden“ speichert die IPv4-Adresse in `config.json` im Projektordner. Sie bleibt bei Browser- und Server-Neustarts erhalten. Ohne gespeicherte Einstellung ist `192.168.4.119` voreingestellt. Nach dem Speichern startet der Abruf mit der neuen Adresse; bei einem nicht erreichbaren Gerät erscheint ein Verbindungsfehler. Bestehende Verlaufsdateien bleiben erhalten und enthalten weiterhin die Quelladresse jedes Messwerts.
+You can change the gateway IP on the website under “VARTA.iQ Energy Manager”. The “Speichern & verbinden” (“Save & connect”) button saves the IPv4 address in `config.json` in the project folder, or in `CONFIG_DIR` when configured. It persists across browser and server restarts. If no setting has been saved, the default is `192.168.4.119`. After saving, polling starts using the new address; a connection error appears if the device cannot be reached. Existing history files are preserved and continue to include the source address of each measurement.
 
-Solange der Server läuft, fragt er unabhängig vom Browser alle 10 Sekunden beide Endpunkte ab. Messwerte werden als `data/point-YYYY-MM-DD.jsonl` gespeichert. Die Geräteliste wird bei Änderungen als `data/devices-YYYY-MM-DD.jsonl` gespeichert. Jede Zeile enthält Abrufzeit, Quelladresse und die vollständige JSON-Antwort. Dateinamen und gespeicherte Zeitstempel verwenden UTC; die Website zeigt Zeiten für Europe/Berlin an.
+While the server is running, it polls both endpoints every 10 seconds independently of the browser. Measurements are saved as `data/point-YYYY-MM-DD.jsonl`. The device list is saved as `data/devices-YYYY-MM-DD.jsonl` whenever it changes. Each line contains the retrieval time, source address, and complete JSON response. Filenames and stored timestamps use UTC; the website displays times in Europe/Berlin.
 
-Identische Messzeitstempel werden innerhalb einer Serverlaufzeit nicht erneut gespeichert. Nach einem Neustart kann derselbe Messwert nochmals vorkommen. Dateien werden fortlaufend ergänzt und nicht automatisch gelöscht. Ohne laufenden Server oder bei Netzwerkausfällen entstehen Datenlücken; eine rückwirkende Abfrage ist nicht eingerichtet. Das Abschalten der automatischen Browser-Aktualisierung stoppt nur die Anzeige, die Server-Aufzeichnung läuft weiter. Ihr Zustand ist im Fußbereich der Website sichtbar.
+Identical measurement timestamps are not saved again during a single server run. After a restart, the same measurement may appear again. Files are continuously appended to and are not deleted automatically. Gaps occur when the server is not running or the network is unavailable; historical backfilling is not configured. Disabling automatic browser refreshing stops only display updates; server-side recording continues. Its status is visible in the website footer.
 
-## Verlaufsansicht
+## History view
 
-Zeiträume: letzte Stunde, 6 Stunden, 24 Stunden und 7 Tage. Diagramme zeigen Leistung in Watt und Ladezustand in Prozent getrennt. Messreihen sind über die Legende einzeln einblendbar, einschließlich Leistung und Ladezustand einzelner Geräte. Mit Maus oder Schieberegler unter dem Diagramm lassen sich Messzeitpunkte ansehen.
+Available time ranges: the last hour, 6 hours, 24 hours, and 7 days. Charts display power in watts and state of charge as a percentage separately. Individual series can be toggled through the legend, including power and state of charge for individual devices. Use the mouse or the slider below the chart to inspect measurement times.
 
-`GET /api/history?hours=24` liefert den Verlauf aus den gespeicherten JSONL-Dateien. Zeitstempel werden sortiert und doppelte Messzeitpunkte zusammengeführt. Es werden nur endliche Zahlen verwendet; fehlende Werte werden nicht als Null interpretiert. Für eine Stunde liefert die API Mittelwerte in 10-Sekunden-Fenstern, bis 24 Stunden Minutenmittelwerte und darüber 5-Minuten-Mittelwerte. Die originalen Messwerte bleiben auf der Festplatte erhalten. Größere Lücken zwischen den ausgegebenen Zeitfenstern werden im Diagramm nicht überbrückt; kurze Unterbrechungen innerhalb eines Mittelungsfensters sind darin nicht einzeln sichtbar. Unlesbare Speicherzeilen werden übersprungen und im Frontend gemeldet.
+`GET /api/history?hours=24` returns history from the stored JSONL files. Timestamps are sorted and duplicate measurement times are merged. Only finite numbers are used; missing values are not interpreted as zero. For a one-hour range, the API returns averages in 10-second windows; for ranges up to 24 hours, it returns one-minute averages; for longer ranges, it returns five-minute averages. The original measurements remain on disk. Larger gaps between output windows are not connected in the chart; short interruptions within an averaging window are not shown individually. Unreadable stored lines are skipped and reported in the frontend.
 
-Bereits vorhandene Dateien werden automatisch eingebunden, auch nach einem Neustart. Vergangene Zeiten vor Beginn der lokalen Aufzeichnung sind nicht verfügbar. Der Dienst läuft als lokaler Node-Prozess, nicht als automatisch beim Windows-Start installierter Systemdienst. Tests: `npm test`.
+Existing files are included automatically, including after a restart. Data from before local recording began is not available. When started directly, the service runs as a local Node process, rather than a system service installed to start automatically with Windows. Run the tests with `npm test`.
