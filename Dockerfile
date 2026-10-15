@@ -7,7 +7,8 @@ ENV NODE_ENV=production \
     CONFIG_DIR=/app/config
 
 WORKDIR /app
-COPY --chown=node:node package.json server.mjs history.mjs settings.mjs ./
+COPY --chown=node:node package.json server.mjs history.mjs settings.mjs gateway-https.mjs ./
+COPY --chown=node:node certificates/ ./certificates/
 COPY --chown=node:node public/ ./public/
 RUN mkdir -p /app/data /app/config && chown node:node /app/data /app/config
 

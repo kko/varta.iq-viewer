@@ -4,5 +4,8 @@
 !server.mjs
 !history.mjs
 !settings.mjs
+!gateway-https.mjs
+!certificates/
+!certificates/gateway-*.pem
 !public/
 !public/**

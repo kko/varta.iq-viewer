@@ -5,7 +5,7 @@ This viewer displays data from a VARTA.iQ Energy Manager on the local network.
 Before using the viewer, enable access to the local API in the [VARTA Cloud](https://iq.varta.energy/) under **Settings → Local API** (German interface: **Einstellungen → Lokale API**).
 
 Start the service with `npm start` or by double-clicking `Start-Varta.cmd`.
-Then open http://127.0.0.1:8787 in your browser. Node.js version 20 or later is required; no additional packages are needed.
+Then open http://127.0.0.1:8787 in your browser. Node.js version 22.9 or later is required; no additional packages are needed.
 
 ## Docker
 
@@ -40,7 +40,15 @@ Then run `docker compose up -d --build` and open, for example, http://192.168.4.
 
 Optional server environment variables: `HOST` (defaults to `127.0.0.1` locally and `0.0.0.0` in the image), `PORT` (8787), `DATA_DIR`, `CONFIG_DIR`, and `ALLOWED_HOSTS` (additional comma-separated Host header values, including the port). Without directory variables, the local Node process continues to use `data/` and `config.json` in the project folder.
 
-The backend polls only `GET http://192.168.4.119/v2/point` and `GET http://192.168.4.119/v2/devices` every ten seconds, regardless of whether any browsers are open. The frontend reads the latest response from the backend cache; additional browsers do not generate additional gateway requests. The complete JSON responses are available below their respective summaries. The display refreshes every ten seconds while the tab is visible, and automatic refreshing can be disabled.
+The backend polls only `GET https://192.168.4.119/v2/point` and `GET https://192.168.4.119/v2/devices` every ten seconds, regardless of whether any browsers are open. The configured gateway IP is used for both endpoints. HTTPS certificate validation remains enabled; certificate errors appear on the website and pause new recordings until resolved. There is no automatic fallback to HTTP. The frontend reads the latest response from the backend cache; additional browsers do not generate additional gateway requests. The complete JSON responses are available below their respective summaries. The display refreshes every ten seconds while the tab is visible, and automatic refreshing can be disabled.
+
+## Gateway HTTPS certificate
+
+The device at `192.168.4.119` presents an AWS IoT device certificate without a DNS/IP subject alternative name. Its public certificate is stored in `certificates/gateway-192.168.4.119.pem`. Node uses this exact certificate as an explicit trust anchor with `allowPartialTrustChain` and verifies the SHA-256 fingerprint for that IP instead of DNS/IP certificate names. TLS signature and validity checks remain enabled (`rejectUnauthorized: true`). No private key is needed, and system-wide certificate trust is unchanged.
+
+Enrolled certificate SHA-256: `89:99:0B:26:03:EB:01:25:4C:69:24:1F:BE:60:FA:07:9D:8C:9C:AB:9E:AF:7E:2F:62:AC:F4:99:2D:D3:60:D9`.
+
+Certificates are never automatically accepted or replaced during polling. For a changed IP or a replacement certificate, verify the device certificate and install its public PEM as `certificates/gateway-<IP>.pem`. `GATEWAY_CERT_DIR` can override the certificate directory. Without a matching local PEM, ordinary HTTPS CA and hostname validation applies. The Docker image includes the enrolled public PEM; rebuild it after changes with `docker compose up -d --build`.
 
 The local server forwards the two fixed endpoints so the browser can read the data without CORS issues. When started directly with Node using the default settings, it is accessible only at 127.0.0.1. The computer must be on the same network as the gateway; keep the server window open. Stop the server with Ctrl+C.
 

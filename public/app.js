@@ -18,7 +18,7 @@ let gatewayRevision = 0;
 function showGateway(ip) {
   $('gatewayAddress').textContent = ip;
   $('gatewayLink').textContent = ip;
-  $('gatewayLink').href = `http://${ip}/`;
+  $('gatewayLink').href = `https://${ip}/`;
 }
 
 async function loadSettings() {
@@ -56,7 +56,7 @@ $('settingsForm').addEventListener('submit', async event => {
     $('fields').replaceChildren(); $('devices').replaceChildren();
     for (const name of ['point', 'devices']) {
       $(name + 'Json').textContent = 'Warte auf Daten der gespeicherten Adresse …';
-      $(name + 'Meta').textContent = `http://${settings.gatewayIp}/v2/${name}`;
+      $(name + 'Meta').textContent = `https://${settings.gatewayIp}/v2/${name}`;
       $(name + 'Status').textContent = 'Verbindung wird aufgebaut';
       $(name + 'Status').className = 'badge';
     }

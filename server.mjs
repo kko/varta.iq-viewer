@@ -4,6 +4,11 @@ import { pathToFileURL } from 'node:url';
 import { readFile, mkdir, appendFile } from 'node:fs/promises';
 import { readHistory } from './history.mjs';
 import { loadSettings, saveSettings, validateIp } from './settings.mjs';
+import { fetchGateway } from './gateway-https.mjs';
+
+const certificateDir = process.env.GATEWAY_CERT_DIR
+  ? pathToFileURL(resolve(process.env.GATEWAY_CERT_DIR) + sep)
+  : new URL('./certificates/', import.meta.url);
 
 const configDir = process.env.CONFIG_DIR
   ? pathToFileURL(resolve(process.env.CONFIG_DIR) + sep)
@@ -11,7 +16,7 @@ const configDir = process.env.CONFIG_DIR
 await mkdir(configDir, { recursive: true });
 const settingsFile = new URL('config.json', configDir);
 let settings = await loadSettings(settingsFile);
-let gateway = `http://${settings.gatewayIp}`;
+let gateway = `https://${settings.gatewayIp}`;
 let updatingSettings = false;
 const port = Number(process.env.PORT || 8787);
 const host = process.env.HOST || '127.0.0.1';
@@ -37,7 +42,7 @@ async function record() {
     // Save independently so a device-list failure cannot interrupt measurement recording.
     const results = await Promise.allSettled(['point', 'devices'].map(async name => {
       try {
-      const response = await fetch(`${gateway}/v2/${name}`, { signal: AbortSignal.timeout(8000), redirect: 'error' });
+      const response = await fetchGateway(`${gateway}/v2/${name}`, certificateDir);
       if (!response.ok) throw new Error(`${name}: HTTP ${response.status}`);
       const data = await response.json();
       if (name === 'point' && (!data || typeof data !== 'object' || Array.isArray(data) || !Number.isFinite(Date.parse(data.t)))) throw new Error('point: Ungültiges Messdatenformat');
@@ -54,7 +59,15 @@ async function record() {
         recording.lastSavedAt = receivedAt;
         recording.lastMeasurementAt = data.t;
       } else lastDevices = serialized;
-      } catch (error) { pollErrors.set(name, error.message); throw error; }
+      } catch (error) {
+        const code = error.cause?.code || error.code;
+        const certificateError = code && /CERT|SELF_SIGNED|UNABLE_TO_VERIFY|UNABLE_TO_GET_ISSUER/.test(code);
+        const message = certificateError
+          ? `HTTPS-Zertifikat des Energy Managers kann nicht verifiziert werden (${code}).`
+          : `HTTPS-Abruf fehlgeschlagen: ${error.message}${code ? ` (${code})` : ''}`;
+        pollErrors.set(name, message);
+        throw new Error(message);
+      }
     }));
     const failures = results.filter(result => result.status === 'rejected');
     recording.error = failures.length ? failures.map(result => result.reason.message).join('; ') : null;
@@ -90,7 +103,7 @@ const server = http.createServer(async (req, res) => {
       while (recordingBusy) await new Promise(resolve => setTimeout(resolve, 25));
       phase = 'save';
       settings = await saveSettings(settingsFile, ip);
-      gateway = `http://${settings.gatewayIp}`;
+      gateway = `https://${settings.gatewayIp}`;
       latest.clear(); pollErrors.clear();
       lastPointTime = undefined; lastDevices = undefined;
       recording.lastSavedAt = null; recording.lastMeasurementAt = null; recording.error = null;
